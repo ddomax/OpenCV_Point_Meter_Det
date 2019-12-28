@@ -37,6 +37,9 @@ private:
     Vec4i l;
     Vec4i cho_l;
 
+    VideoCapture cap;
+    QTime time;
+
 public slots:
     int process();
 };

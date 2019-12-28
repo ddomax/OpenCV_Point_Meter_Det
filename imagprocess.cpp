@@ -2,105 +2,95 @@
 
 ImagProcess::ImagProcess(QObject *parent) : QObject(parent)
 {
-
-}
-
-int ImagProcess::process()
-{
-//    QApplication a(argc, argv);
-    // Define Window Name
-    char window_name[] = "Demo";
-
-    // Define File Path
-    char src_image_path[] = "C://Qt_Workspace//OpenCV_Point_Meter_Det//image14.jpg"; //11.jpg
-//    char template_path[] = "C://Qt_Workspace//OpenCV_Point_Meter_Det//05.jpg";
-
-    // Create a named window with the name of the file
-    namedWindow(window_name);
-
-    // Define Variables
-    Mat src_img, template_img, midd_img, midd_line_img,gray_img, dst_img;
-
-    // Load the image from the given file name
-
-    //打开第一个摄像头
-    VideoCapture cap(2);
+    cap = VideoCapture(CV_CAP_DSHOW);
+    cap.open(2);
     //检查摄像头是否成功打开
     if (!cap.isOpened())
     {
         qDebug()<<"摄像头未成功打开"<<endl;
     }
+//    cap.set(CV_CAP_PROP_FOURCC,CV_FOURCC('M', 'J', 'P', 'G'));
+//    qDebug() << cap.get(CV_CAP_PROP_FOURCC);
+//    qDebug() << cap.set(CV_CAP_PROP_FOURCC,CV_FOURCC('Y', 'U', 'Y', '2'));
+//    qDebug() << cap.get(CV_CAP_PROP_FOURCC);
+    qDebug() << cap.set(CV_CAP_PROP_FRAME_WIDTH, 10000); //1024*3
+    qDebug() << cap.set(CV_CAP_PROP_FRAME_HEIGHT, 10000); //768*3
+    qDebug() << cap.set(CV_CAP_PROP_EXPOSURE, -2);//曝光
+//    qDebug() << cap.set(CV_CAP_PROP_AUTO_EXPOSURE,0.25);
+    qDebug() << cap.get(CV_CAP_PROP_EXPOSURE);
+//    qDebug() << cap.set(CV_CAP_PROP_FPS, 2.5);
+//    double grabMode,frameFormat,settings;
+//    bool ok = false;
+//    // Backed-specific value indicating the current capture mode.
+//    grabMode = cap.get(CV_CAP_PROP_MODE);
+//    qDebug() << grabMode;
+//    // Format of the Mat objects returned by retrieve()
+//    frameFormat = cap.get(CV_CAP_PROP_FORMAT);
+//    // Some available settings
+//    settings = cap.get(CV_CAP_PROP_SETTINGS);
 
-    cap.set(CV_CAP_PROP_FRAME_WIDTH, 1920);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT, 1080);
+//    // Playing around GRAB_MODE
 
-    cap >> src_img;
-//    src_img = imread(src_image_path, 1);
-//    template_img = imread(template_path, 1);
-
-    // Check if image is loaded fine
-    if (src_img.empty()) {
-        printf(" Error opening image\n");
-        printf(" Program Arguments: [image_name -- default %s] \n", src_image_path);
-        return -1;
-    }
-
-    // Choose a Region Of Interest(ROI)
-    //midd_img = ChooseROI(src_img, template_img, midd_img);
-    midd_img = src_img.clone();
-    midd_line_img = src_img.clone();
-
-//    // medianBlur filter
-//    medianBlur(midd_img, midd_img, 5); //5
-
-    // gray
-    cvtColor(midd_img, gray_img, COLOR_BGR2GRAY);
-
-//    // medianBlur filter
-//    medianBlur(gray_img, gray_img, 5); //5
-
-    QTime time;
+//    // Boolean flags indicating whether images should be converted to RGB.
+//    qDebug() << cap.set(CV_CAP_PROP_CONVERT_RGB, 0);
+//    int i = -100;
+//    while(ok == false && i<100)
+//    {
+//     if (i != 0)
+//       ok = cap.set(CV_CAP_PROP_MODE, grabMode + i);
+//     i++;
+//    }
+//    if(ok)
+//    {
+//     grabMode = cap.get(CV_CAP_PROP_MODE);
+//     qDebug() << "Grab Mode=" << grabMode << " is supported" << endl;
+//    }
+//    grabMode = cap.get(CV_CAP_PROP_MODE);
+//    qDebug() << grabMode;
     time.start();
+}
+
+int ImagProcess::process()
+{
+    // Define Variables
+    Mat src_img,gray_img;
+    static int lastTime = 0;
+    int tempTime;
+    int frameStartTime = time.elapsed();
+    cap >> src_img;
+
+//    qDebug() << QString("CameraCaptureTime:%1ms").arg(time.elapsed()-frameStartTime);
+    tempTime = time.elapsed();
+
+#if(1)
+    // gray
+    cvtColor(src_img, gray_img, COLOR_BGR2GRAY);
+
+    // medianBlur filter
+    medianBlur(gray_img, gray_img, 3); //5
 
     // CannyDetect
-    Mat gray_raw_img,canny_img;
-    cvtColor(midd_img, gray_raw_img, COLOR_BGR2GRAY);
-    Canny(gray_raw_img, canny_img, 20, 20, 3); //23,55 ,3
+    Mat canny_img;
+    Canny(gray_img, canny_img, 20, 50, 3); //23,55 ,3
     imshow("Canny Output Main",canny_img);
 
-    qDebug() << QString("CannyRunTime:%1ms").arg(time.elapsed());
-
-    time.start();
-    // HoughCircle
-    midd_img = HoughCircle(gray_raw_img, midd_img);
-//    midd_img = HoughCircle(canny_img, midd_img);
-    qDebug() << QString("HoughCircleRunTime:%1ms").arg(time.elapsed());
-
-#if(0)
-    // HoughLine
-    midd_line_img = HoughLine(midd_img, midd_line_img);
-
-    // Line Specify
-    // None now
-
-    // Calculate Value
-    float angle;
-    angle = CalculateValue();
-
-    qDebug() << angle;
+//    qDebug() << QString("CannyRunTime:%1ms").arg(time.elapsed()-tempTime);
 #endif
 
     // Show and save the dstImage
-    namedWindow(window_name, WINDOW_NORMAL);
-    moveWindow(window_name, 100, 100);
-    imshow(window_name, midd_img);
-//    waitKey(0);
+    imshow("Raw Image", src_img);
+    if((char)waitKey(1)=='c')
+    {
+        imwrite("cap.png",src_img);
+        qDebug() << QString("Image saved!");
+    }
 
-//    // Pause
-//    waitKey(0);
-//    destroyAllWindows();
-
-//    return a.exec();
+//    qDebug() << QString("TotalRunTime:%1ms").arg(time.elapsed()-frameStartTime);
+    qDebug() << QString("FrameRate:%1").arg(1000.0/(time.elapsed()-lastTime));
+    if(time.elapsed()-lastTime>200)
+        qDebug() << QString("FrameIntervalTime:%1ms").arg(time.elapsed()-lastTime);
+    lastTime = time.elapsed();
+    return 0;
 }
 
 Mat ImagProcess::ChooseROI(Mat src_img, Mat template_img, Mat midd_img)
