@@ -119,6 +119,8 @@ int ImagProcess::process()
 #if(1)
     // gray
     cvtColor(src_img, gray_img, COLOR_BGR2GRAY);
+    // RGB Channels
+    split(src_img, split_img);
 
     //detect laser point
 #if(1)
@@ -129,9 +131,9 @@ int ImagProcess::process()
     for(int x=0;x<frameWidth;x++)
         for(int y=0;y<frameHeight;y++)
         {
-            if(gray_img.at<uchar>(Point(x,y))>thLaser)
+            if(split_img[2].at<uchar>(Point(x,y))>thLaser)
             {
-                cv::circle(src_img, Point(x,y), 1, cv::Scalar(0,255,0), 2); //画激光点
+//                cv::circle(src_img, Point(x,y), 1, cv::Scalar(0,255,0), 2); //画激光点
                 xAcc+=x;
                 yAcc+=y;
                 laserPointCnt++;
@@ -144,62 +146,92 @@ int ImagProcess::process()
     }
     else
     {
-        double movAvgX,movAvgY;
+        double movAvgX1,movAvgY1;
+        double movAvgX2,movAvgY2;
         static const int showAvgLen=10;
-        movAvgX=dataAverage(recordX,showAvgLen);
-        movAvgY=dataAverage(recordY,showAvgLen);
-        cv::line(src_img,Point(movAvgX,0),Point(movAvgX,frameHeight-1),cv::Scalar(0,255,255),2,LINE_8);
-        cv::line(src_img,Point(0,movAvgY),Point(frameWidth-1,movAvgY),cv::Scalar(0,255,255),1,LINE_8);
+        movAvgX1=dataAverage(recordX1,showAvgLen);
+        movAvgY1=dataAverage(recordY1,showAvgLen);
+        movAvgX2=dataAverage(recordX2,showAvgLen);
+        movAvgY2=dataAverage(recordY2,showAvgLen);
+        cv::line(src_img,Point(movAvgX1,0),Point(movAvgX1,frameHeight-1),cv::Scalar(0,255,255),2,LINE_8);
+        cv::line(src_img,Point(0,movAvgY1),Point(frameWidth-1,movAvgY1),cv::Scalar(0,255,255),2,LINE_8);
+        cv::line(src_img,Point(movAvgX2,0),Point(movAvgX2,frameHeight-1),cv::Scalar(255,0,255),2,LINE_8);
+        cv::line(src_img,Point(0,movAvgY2),Point(frameWidth-1,movAvgY2),cv::Scalar(255,0,255),2,LINE_8);
     }
     static bool firstFlag = true;
-    if(laserPointCnt>0)
+    if(startMove)
     {
-        if(firstFlag)
+        if(laserPointCnt>0)
         {
-            firstFlag=false;
-            speed[0]=128;
-            speed[1]=128;
-            qDebug() << m_serial->write(speed);
-            m_serial->flush();
-        }
-        xAvg=xAcc/laserPointCnt;
-        yAvg=yAcc/laserPointCnt;
-//        qDebug() << QString("LaserPoint:%1,%2").arg(xAvg).arg(yAvg);
-        cv::circle(src_img, Point(xAvg,yAvg), 1, cv::Scalar(255,255,0), 2); //画激光点
-        if(startMove)
-        {
-            int speedSetX = 128+xTarget-xAvg;
-            if(speedSetX>254)
-                speedSetX=254;
-            if(speedSetX<0)
-                speedSetX=0;
-            speed[0] = speedSetX;
-            int speedSetY = 128+yTarget-yAvg;
-            if(speedSetY>254)
-                speedSetY=254;
-            if(speedSetY<0)
-                speedSetY=0;
-            speed[1] = speedSetY;
-//            if(std::abs(xTarget-xAvg) < 10)
-//            {
-//                speed[0] = 255;
-//                for(int i=0;i<20;i++)
-//                {
-//                    m_serial->write(speed);
-//                }
-//            }
-            if(m_serial->bytesAvailable()>4)
+            if(firstFlag)
             {
-                qDebug() << m_serial->readAll();
-                m_serial->write(speed);
+                firstFlag=false;
+                speed[0]=129;
+                speed[1]=129;
+                qDebug() << m_serial->write(speed);
                 m_serial->flush();
-                qDebug() << QString("CurLoc:(%1,%2)").arg((uint8_t)speed[0]).arg((uint8_t)speed[1]);
+            }
+            xAvg=xAcc/laserPointCnt;
+            yAvg=yAcc/laserPointCnt;
+    //        qDebug() << QString("LaserPoint:%1,%2").arg(xAvg).arg(yAvg);
+            cv::circle(src_img, Point(xAvg,yAvg), 1, cv::Scalar(255,255,0), 2); //画激光点
+            if(1)
+            {
+                int speedSetX = 128+xTarget-xAvg;
+                if(speedSetX>254)
+                    speedSetX=254;
+                if(speedSetX<0)
+                    speedSetX=0;
+                speed[0] = speedSetX;
+                int speedSetY = 128+yTarget-yAvg;
+                if(speedSetY>254)
+                    speedSetY=254;
+                if(speedSetY<0)
+                    speedSetY=0;
+                speed[1] = speedSetY;
+                if(std::abs(xTarget-xAvg) < 10)
+                {
+                    static int lockDetCnt = 0;
+                    lockDetCnt++;
+                    if(lockDetCnt>100)
+                    {
+                        lockDetCnt=0;
+                        mtts.stopLast();
+                        mtts << QString("第%1靶打完了，现在打另一个靶").arg(curTargetNum);
+                        if(std::abs(dataAverage(recordX1,20)-dataAverage(recordX2,20))<100)
+                            lockTargets(1);
+                        else
+                            lockTargets(2);
+                    }
+    //                speed[0] = 255;
+    //                for(int i=0;i<20;i++)
+    //                {
+    //                    m_serial->write(speed);
+    //                }
+                }
+                if(m_serial->bytesAvailable()>4)
+                {
+                    qDebug() << m_serial->readAll();
+                    m_serial->write(speed);
+                    m_serial->flush();
+                    qDebug() << QString("CurLoc:(%1,%2)").arg((uint8_t)speed[0]).arg((uint8_t)speed[1]);
+                }
             }
         }
-    }
-    else
-    {
-//        mtts << "激光点未找到";
+        else
+        {
+            static int laserNotFindCnt = 0;
+            laserNotFindCnt++;
+            if(laserNotFindCnt>30)
+            {
+                laserNotFindCnt=0;
+                speed[0]=129;
+                speed[1]=255;
+                qDebug() << m_serial->write(speed);
+                m_serial->flush();
+                mtts << "激光点未找到";
+            }
+        }
     }
 
 #endif
@@ -214,8 +246,8 @@ int ImagProcess::process()
         medianBlur(gray_img, gray_img, 3); //5
 
         // CannyDetect
-        Mat canny_img;
-        Canny(gray_img, canny_img, 12, 25, 3); //23,55 ,3
+//        Mat canny_img;
+//        Canny(gray_img, canny_img, 12, 25, 3); //23,55 ,3
     //    qDebug() << QString("CannyRunTime:%1ms").arg(time.elapsed()-tempTime);
         tempTime = time.elapsed();
 
@@ -231,9 +263,6 @@ int ImagProcess::process()
         tempTime = time.elapsed();
     }
 #endif
-
-    // RGB Channels
-//    split(src_img, split_img);
 
     // Show and save the dstImage
 //    imshow("Canny Output Main",canny_img);
@@ -292,22 +321,22 @@ int ImagProcess::process()
     {
         if(startMove==false)
         {
-            firstFlag=true;
-            int i = 0;
             startMove=true;
-            qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)-7);
-            static const int lockAvgLen=10;
-            xTarget=dataAverage(recordX,lockAvgLen);
-            yTarget=dataAverage(recordY,lockAvgLen);
-            r=dataAverage(recordR,lockAvgLen);
-            mtts << QString("锁定成功 圆编号%1圆心坐标%2逗号%3半径%4当前曝光值%5").arg(i).arg(xTarget).arg(yTarget).arg(r).arg(cap.get(cv::CAP_PROP_EXPOSURE));
-            qDebug() << QString("圆编号%1圆心坐标%2逗号%3半径%4").arg(i).arg(xTarget).arg(yTarget).arg(r);
+            firstFlag=true;
+            static const int twoTargetTh = 100;
+            if(std::abs(dataAverage(recordX1,20)-dataAverage(recordX2,20))<twoTargetTh)
+                lockTargets(1);
+            else
+                lockTargets(2);
+            qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)-11);
+            mtts << QString("锁定成功 圆编号%1圆心坐标%2逗号%3半径%4当前曝光值%5").arg(curTargetNum).arg(xTarget).arg(yTarget).arg(r).arg(cap.get(cv::CAP_PROP_EXPOSURE));
+            qDebug() << QString("圆编号%1圆心坐标%2逗号%3半径%4").arg(curTargetNum).arg(xTarget).arg(yTarget).arg(r);
             qDebug() << QString("CurrentExposeVal:%1").arg(cap.get(cv::CAP_PROP_EXPOSURE));
         }
         else
         {
             startMove=false;
-            qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)+7);
+            qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)+11);
             mtts << QString("解除锁定 当前曝光值%1").arg(cap.get(cv::CAP_PROP_EXPOSURE));
         }
         break;
@@ -340,6 +369,35 @@ int ImagProcess::process()
     return 0;
 }
 
+void ImagProcess::lockTargets(int targetNum)
+{
+    static const int lockAvgLen=10;
+    if(targetNum==1)
+    {
+        xTarget=dataAverage(recordX,lockAvgLen);
+        yTarget=dataAverage(recordY,lockAvgLen);
+        r=dataAverage(recordR,lockAvgLen);
+    }
+    else
+    {
+        if(curTargetNum==1)
+        {
+            curTargetNum=2;
+            xTarget=dataAverage(recordX1,lockAvgLen);
+            yTarget=dataAverage(recordY1,lockAvgLen);
+            r=dataAverage(recordR1,lockAvgLen);
+        }
+        else
+        {
+            curTargetNum=1;
+            xTarget=dataAverage(recordX2,lockAvgLen);
+            yTarget=dataAverage(recordY2,lockAvgLen);
+            r=dataAverage(recordR2,lockAvgLen);
+        }
+    }
+
+}
+
 void ImagProcess::recordCircle()
 {
     std::vector<cv::Vec3f> circles = finder.getCenterPoints();
@@ -349,6 +407,20 @@ void ImagProcess::recordCircle()
         addData(recordX,(*itc)[0]);
         addData(recordY,(*itc)[1]);
         addData(recordR,(*itc)[2]);
+
+        if((*itc)[0]<dataAverage(recordX,20))
+        {
+            addData(recordX1,(*itc)[0]);
+            addData(recordY1,(*itc)[1]);
+            addData(recordR1,(*itc)[2]);
+        }
+        else
+        {
+            addData(recordX2,(*itc)[0]);
+            addData(recordY2,(*itc)[1]);
+            addData(recordR2,(*itc)[2]);
+        }
+
         ++itc;
         ++i;
     }

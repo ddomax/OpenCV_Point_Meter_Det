@@ -43,8 +43,15 @@ private:
     int recordX[RECORD_DATA_LEN];
     int recordY[RECORD_DATA_LEN];
     int recordR[RECORD_DATA_LEN];
+    int recordX1[RECORD_DATA_LEN];
+    int recordY1[RECORD_DATA_LEN];
+    int recordR1[RECORD_DATA_LEN];
+    int recordX2[RECORD_DATA_LEN];
+    int recordY2[RECORD_DATA_LEN];
+    int recordR2[RECORD_DATA_LEN];
     double dataAverage(int *recordData,int num = RECORD_DATA_LEN);
     void addData(int *recordData,int dataIn);
+    void lockTargets(int targetNum=1);
     void openSerialPort();
     void refreshSerialPorts();
     float CalculateValue();
@@ -61,7 +68,7 @@ private:
     QTime time;
 
     int frameWidth,frameHeight;
-    static const int thLaser = 250;
+    static const int thLaser = 100;
 
     QSerialPort* m_serial;
     QStringList portList;
@@ -70,6 +77,7 @@ private:
     QByteArray speed = QByteArray(4,(uchar)0);
     bool startMove = false;
     CircleFinder finder;
+    int curTargetNum = 2;
 
 public slots:
     int process();
