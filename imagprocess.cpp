@@ -128,17 +128,25 @@ int ImagProcess::process()
     int yAcc=0;
     double xAvg,yAvg;
     double laserPointCnt=0;
-    for(int x=0;x<frameWidth;x++)
-        for(int y=0;y<frameHeight;y++)
-        {
-            if(split_img[2].at<uchar>(Point(x,y))>thLaser)
+    if(startMove)
+    {
+        uchar neighbourPointR,neighbourPointG;
+        for(int x=15;x<frameWidth;x++)
+            for(int y=0;y<frameHeight;y++)
             {
-//                cv::circle(src_img, Point(x,y), 1, cv::Scalar(0,255,0), 2); //画激光点
-                xAcc+=x;
-                yAcc+=y;
-                laserPointCnt++;
+                neighbourPointR = split_img[2].at<uchar>(Point(x-5,y));
+                neighbourPointG = split_img[1].at<uchar>(Point(x-5,y));
+                if(neighbourPointG==0)
+                    neighbourPointG=1;
+                if(split_img[2].at<uchar>(Point(x,y))>thLaser && (neighbourPointR/neighbourPointG)>2 && neighbourPointR>50)
+                {
+                    cv::circle(src_img, Point(x,y), 1, cv::Scalar(0,255,0), 2); //画激光点
+                    xAcc+=x;
+                    yAcc+=y;
+                    laserPointCnt++;
+                }
             }
-        }
+    }
     if(startMove)
     {
         cv::line(src_img,Point(xTarget,0),Point(xTarget,frameHeight-1),cv::Scalar(255,0,0),2,LINE_8);
@@ -174,7 +182,7 @@ int ImagProcess::process()
             xAvg=xAcc/laserPointCnt;
             yAvg=yAcc/laserPointCnt;
     //        qDebug() << QString("LaserPoint:%1,%2").arg(xAvg).arg(yAvg);
-            cv::circle(src_img, Point(xAvg,yAvg), 1, cv::Scalar(255,255,0), 2); //画激光点
+//            cv::circle(src_img, Point(xAvg,yAvg), 1, cv::Scalar(255,255,0), 2); //画激光点
             if(1)
             {
                 int speedSetX = 128+xTarget-xAvg;
@@ -222,7 +230,7 @@ int ImagProcess::process()
         {
             static int laserNotFindCnt = 0;
             laserNotFindCnt++;
-            if(laserNotFindCnt>30)
+            if(laserNotFindCnt>100)
             {
                 laserNotFindCnt=0;
                 speed[0]=129;
@@ -254,7 +262,7 @@ int ImagProcess::process()
         // Hough变换检测
         finder.setDPandThreshold(1, 25); //dp,canny th
         finder.setMinVote(60); //60
-        finder.setCircleParams(50, 80, 120);//min dist, minR, maxR 50,30,70
+        finder.setCircleParams(50, 50, 100);//min dist, minR, maxR 50,30,70 80 120
         finder.findCircles(gray_img);
         finder.drawDetectedCircles(src_img);
         recordCircle();
