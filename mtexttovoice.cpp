@@ -4,7 +4,7 @@ MTextToVoice::MTextToVoice(QObject *parent) : QObject(parent)
 {
     m_speech = new QTextToSpeech(0);
     m_speech->setVolume(100);
-    m_speech->setRate(0.3); //-1 to +1
+    m_speech->setRate(0.4); //-1 to +1
     m_speech->setPitch(1);
 }
 

@@ -39,6 +39,7 @@ private:
     Mat ChooseROI(Mat src_img, Mat template_img, Mat dst_img);
     Mat HoughCircle(Mat gray_img, Mat midd_img);
     Mat HoughLine(Mat midd_img, Mat midd_line_image);
+    Mat rectROI(Mat src_img);
     static const int RECORD_DATA_LEN = 100;
     int recordX[RECORD_DATA_LEN];
     int recordY[RECORD_DATA_LEN];
@@ -58,6 +59,8 @@ private:
     void recordCircle();
 
     Point circle_center;
+    Point startROI = Point(0,0);
+    Point stopROI = Point(500,500);
     int circle_radius;
 
     Vec4i l;

@@ -27,7 +27,7 @@ ImagProcess::ImagProcess(QObject *parent) : QObject(parent)
     qDebug() << QString("Resolution:%1x%2").arg(frameWidth).arg(frameHeight);
 //    qDebug() << cap.set(cv::CAP_PROP_CONVERT_RGB, 0);
 //    qDebug() << cap.set(cv::CAP_PROP_AUTO_EXPOSURE,0.25);
-    qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, 3);//曝光
+    qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, 1);//曝光
 //    qDebug() << cap.set(cv::CAP_PROP_ISO_SPEED,1000);
 //    qDebug() << cap.get(cv::CAP_PROP_AUTO_EXPOSURE);
 //    for(int i=0;i<42;i++)
@@ -110,6 +110,10 @@ int ImagProcess::process()
     static int lastTime = 0;
     int tempTime;
     int frameStartTime = time.elapsed();
+//    Point* activePoint = &startROI;
+    static Rect regionROI = Rect(0,0,frameWidth,frameHeight);
+    static Rect regionCircleCenter = Rect(0,0,frameWidth,frameHeight);
+    static Point centerPoint = Point(frameWidth/2,frameHeight/2);
     cap >> src_img;
 //    writer << src_img;
 
@@ -131,14 +135,14 @@ int ImagProcess::process()
     if(startMove)
     {
         uchar neighbourPointR,neighbourPointG;
-        for(int x=15;x<frameWidth;x++)
-            for(int y=0;y<frameHeight;y++)
+        for(int x=regionROI.x+5;x<(regionROI.x+regionROI.width);x++)
+            for(int y=regionROI.y;y<(regionROI.y+regionROI.height);y++)
             {
                 neighbourPointR = split_img[2].at<uchar>(Point(x-5,y));
                 neighbourPointG = split_img[1].at<uchar>(Point(x-5,y));
                 if(neighbourPointG==0)
                     neighbourPointG=1;
-                if(split_img[2].at<uchar>(Point(x,y))>thLaser && (neighbourPointR/neighbourPointG)>2 && neighbourPointR>50)
+                if(split_img[2].at<uchar>(Point(x,y))>thLaser && (neighbourPointR/neighbourPointG)>1 && neighbourPointR>50)
                 {
                     cv::circle(src_img, Point(x,y), 1, cv::Scalar(0,255,0), 2); //画激光点
                     xAcc+=x;
@@ -174,8 +178,14 @@ int ImagProcess::process()
             if(firstFlag)
             {
                 firstFlag=false;
-                speed[0]=129;
-                speed[1]=129;
+                if(xTarget<centerPoint.x)
+                    speed[0]=129;
+                else
+                    speed[0]=127;
+                if(yTarget<centerPoint.y)
+                    speed[1]=129;
+                else
+                    speed[1]=127;
                 qDebug() << m_serial->write(speed);
                 m_serial->flush();
             }
@@ -201,15 +211,48 @@ int ImagProcess::process()
                 {
                     static int lockDetCnt = 0;
                     lockDetCnt++;
-                    if(lockDetCnt>100)
+                    if(lockDetCnt>50)
                     {
+                        qDebug() << "Lock";
                         lockDetCnt=0;
+//                        mtts.stopLast();
+//                        while(m_serial->bytesAvailable()<8)
+//                        {
+////                            qDebug() << mtts.getState();
+////                            if(mtts.getState()!=QTextToSpeech::Speaking)
+////                            {
+////                                mtts << "测距中";
+//                                speed[0] = 128;
+//                                speed[1] = 128;
+//                                m_serial->write(speed);
+////                            }
+//                        }
+                        m_serial->readAll();
+                        speed[0] = 128;
+                        speed[1] = 128;
+                        m_serial->write(speed);
                         mtts.stopLast();
-                        mtts << QString("第%1靶打完了，现在打另一个靶").arg(curTargetNum);
+
+                        float curDis = 0;
+                        waitKey(100);
+                        QByteArray buf = m_serial->readLine();
+                        qDebug() << buf;
+                        buf.chop(2);
+                        if(buf.isEmpty()){
+                            curDis=-1.0;
+                            qDebug() << tr("Buffer is empty!");
+                        }else{
+                            curDis=buf.toFloat();
+                        }
+                        mtts << QString("第%1靶%2米").arg(curTargetNum).arg(curDis-0.05);
+                        qDebug() << QString("第%1靶%2米").arg(curTargetNum).arg(curDis-0.05);
                         if(std::abs(dataAverage(recordX1,20)-dataAverage(recordX2,20))<100)
                             lockTargets(1);
                         else
                             lockTargets(2);
+                        speed[0] = 128;
+                        speed[1] = 128;
+                        m_serial->write(speed);
                     }
     //                speed[0] = 255;
     //                for(int i=0;i<20;i++)
@@ -217,6 +260,7 @@ int ImagProcess::process()
     //                    m_serial->write(speed);
     //                }
                 }
+
                 if(m_serial->bytesAvailable()>4)
                 {
                     qDebug() << m_serial->readAll();
@@ -232,11 +276,11 @@ int ImagProcess::process()
             laserNotFindCnt++;
             if(laserNotFindCnt>100)
             {
-                laserNotFindCnt=0;
-                speed[0]=129;
-                speed[1]=255;
-                qDebug() << m_serial->write(speed);
-                m_serial->flush();
+//                laserNotFindCnt=0;
+//                speed[0]=129;
+//                speed[1]=255;
+//                qDebug() << m_serial->write(speed);
+//                m_serial->flush();
                 mtts << "激光点未找到";
             }
         }
@@ -261,9 +305,9 @@ int ImagProcess::process()
 
         // Hough变换检测
         finder.setDPandThreshold(1, 25); //dp,canny th
-        finder.setMinVote(60); //60
-        finder.setCircleParams(50, 50, 100);//min dist, minR, maxR 50,30,70 80 120
-        finder.findCircles(gray_img);
+        finder.setMinVote(65); //60
+        finder.setCircleParams(50, 60, 100);//min dist, minR, maxR 50,30,70 80 120
+        finder.findCircles(gray_img,regionROI,regionCircleCenter);
         finder.drawDetectedCircles(src_img);
         recordCircle();
 
@@ -272,6 +316,11 @@ int ImagProcess::process()
     }
 #endif
 
+//    rectROI(src_img);
+    rectangle(src_img, regionROI, Scalar(0, 255, 0), 2, 8, 0);
+    rectangle(src_img, regionCircleCenter, Scalar(55, 128, 128), 2, 8, 0);
+    cv::circle(src_img, centerPoint, 1, cv::Scalar(128,255,0), 2); //画激光点
+
     // Show and save the dstImage
 //    imshow("Canny Output Main",canny_img);
     imshow("Raw Image", src_img);
@@ -279,6 +328,7 @@ int ImagProcess::process()
 //    imshow("GChannel", split_img[1]);
 //    imshow("RChannel", split_img[2]);
 //    cv::setMouseCallback("RChannel",onMouse,reinterpret_cast<void*> (&split_img[2]));
+//    cv::setMouseCallback("Raw Image",onMouseGetPoint,activePoint);
 //    imshow("R-BChannel", split_img[2]-split_img[0]);
     switch ((char)waitKey(1)) {
     case 'c':
@@ -336,7 +386,7 @@ int ImagProcess::process()
                 lockTargets(1);
             else
                 lockTargets(2);
-            qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)-11);
+            qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)-3);
             mtts << QString("锁定成功 圆编号%1圆心坐标%2逗号%3半径%4当前曝光值%5").arg(curTargetNum).arg(xTarget).arg(yTarget).arg(r).arg(cap.get(cv::CAP_PROP_EXPOSURE));
             qDebug() << QString("圆编号%1圆心坐标%2逗号%3半径%4").arg(curTargetNum).arg(xTarget).arg(yTarget).arg(r);
             qDebug() << QString("CurrentExposeVal:%1").arg(cap.get(cv::CAP_PROP_EXPOSURE));
@@ -344,7 +394,7 @@ int ImagProcess::process()
         else
         {
             startMove=false;
-            qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)+11);
+            qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)+3);
             mtts << QString("解除锁定 当前曝光值%1").arg(cap.get(cv::CAP_PROP_EXPOSURE));
         }
         break;
@@ -354,6 +404,35 @@ int ImagProcess::process()
         speed[0] = speed[0] + 1;
         m_serial->write(speed);
         mtts << QString("速度%1").arg((int)speed[0]);
+        break;
+    }
+    case '1':
+    {
+        qDebug() << "Set ROI";
+        mtts << "设置分析区域";
+//        activePoint = &startROI;
+//        cv::setMouseCallback("Raw Image",onMouseGetPoint,activePoint);
+        regionROI = cv::selectROI("Raw Image", src_img);
+        mtts << "设置成功";
+        break;
+    }
+    case '2':
+    {
+        qDebug() << "Set Cicrle Center Valid Region";
+        mtts << "设置圆心有效区域";
+//        activePoint = &stopROI;
+//        cv::setMouseCallback("Raw Image",onMouseGetPoint,activePoint);
+        regionCircleCenter = cv::selectROI("Raw Image", src_img);
+        mtts << "设置成功";
+        break;
+    }
+    case '3':
+    {
+        qDebug() << "Set Center Point";
+        mtts << "设置中心位置";
+        Rect regionPoint = cv::selectROI("Raw Image", src_img);
+        centerPoint = (regionPoint.tl()+regionPoint.br())/2;
+        mtts << "设置成功";
         break;
     }
     case 27:
@@ -448,6 +527,18 @@ void ImagProcess::addData(int* recordData,int dataIn)
     for(int i=0;i<RECORD_DATA_LEN;i++)
         recordData[i] = recordData[i+1];
     recordData[RECORD_DATA_LEN-1] = dataIn;
+}
+
+Mat ImagProcess::rectROI(Mat src_img)
+{
+    rectangle(src_img, startROI, stopROI, Scalar(0, 255, 0), 2, 8, 0);
+    // Chooses the input image
+
+    Rect rect(startROI.x,startROI.y, stopROI.x-startROI.x, stopROI.y-startROI.y); //x,y,width,height
+
+    Mat roi_img = src_img(rect);
+
+    return roi_img;
 }
 
 Mat ImagProcess::ChooseROI(Mat src_img, Mat template_img, Mat midd_img)

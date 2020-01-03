@@ -14,6 +14,7 @@ using namespace std;
 
 //1.回调函数签名
 void onMouse(int event, int x, int y, int flags, void* param);
+void onMouseGetPoint(int event, int x, int y, int flags, void* param);
 
 //2.定义回调函数
 void onMouse(int event, int x, int y, int flags, void* param)
@@ -36,4 +37,11 @@ void onMouse(int event, int x, int y, int flags, void* param)
             break;
     }
 }
+
+void onMouseGetPoint(int event, int x, int y, int flags, void* param)
+{
+    *((Point*)param) = Point(x,y);
+    return;
+}
+
 #endif

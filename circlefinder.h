@@ -36,9 +36,20 @@ public:
 	}
  
 	// Hough变换检测圆
-	void findCircles(cv::Mat& imageBlur) {
+    void findCircles(cv::Mat& imageBlur,cv::Rect roi,cv::Rect regionCircleCenter) {
 		circles.clear();
-        cv::HoughCircles(imageBlur, circles, cv::HOUGH_GRADIENT, dp, minDist, th, minVote, minR, maxR);
+        cv::HoughCircles(imageBlur(roi), circles, cv::HOUGH_GRADIENT, dp, minDist, th, minVote, minR, maxR);
+
+        std::vector<cv::Vec3f>::iterator it = circles.begin();
+        while (it != circles.end()) {
+            (*it)[0] += roi.x;
+            (*it)[1] += roi.y;
+            if(!regionCircleCenter.contains(cv::Point((*it)[0],(*it)[1])))
+            {
+                circles.erase(it);
+            }
+            ++it;
+        }
 	}
  
 	void drawDetectedCircles(cv::Mat &image, cv::Scalar color = cv::Scalar(255)) {
