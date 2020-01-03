@@ -12,35 +12,10 @@ TEMPLATE = app
 
 SOURCES += main.cpp \
     imagprocess.cpp
-INCLUDEPATH += C:\opencv\build\include
-#INCLUDEPATH += C:\opencv-build-static\install\include
+INCLUDEPATH += D:\opencv-build-zty411\install\include
 
-#LIBS += C:\opencv-build\bin\libopencv_core411.dll
-#LIBS += C:\opencv-build\bin\libopencv_highgui411.dll
-#LIBS += C:\opencv-build\bin\libopencv_imgcodecs411.dll
-#LIBS += C:\opencv-build\bin\libopencv_imgproc411.dll
-#LIBS += C:\opencv-build\bin\libopencv_features2d411.dll
-#LIBS += C:\opencv-build\bin\libopencv_calib3d411.dll
+LIBS += D:\opencv-build-zty411\install\x86\mingw\bin\libopencv_*.dll
 
-LIBS += C:\opencv-build-static\bin\opencv_videoio_ffmpeg411.dll
-
-#LIBS += C:\opencv-build\bin\libade.dll
-LIBS += C:\opencv-build\bin\libopencv_calib3d411.dll
-LIBS += C:\opencv-build\bin\libopencv_core411.dll
-LIBS += C:\opencv-build\bin\libopencv_dnn411.dll
-LIBS += C:\opencv-build\bin\libopencv_features2d411.dll
-LIBS += C:\opencv-build\bin\libopencv_flann411.dll
-LIBS += C:\opencv-build\bin\libopencv_gapi411.dll
-LIBS += C:\opencv-build\bin\libopencv_highgui411.dll
-LIBS += C:\opencv-build\bin\libopencv_imgcodecs411.dll
-LIBS += C:\opencv-build\bin\libopencv_imgproc411.dll
-LIBS += C:\opencv-build\bin\libopencv_ml411.dll
-LIBS += C:\opencv-build\bin\libopencv_objdetect411.dll
-LIBS += C:\opencv-build\bin\libopencv_photo411.dll
-LIBS += C:\opencv-build\bin\libopencv_stitching411.dll
-#LIBS += C:\opencv-build\bin\libopencv_ts411.dll
-LIBS += C:\opencv-build\bin\libopencv_video411.dll
-LIBS += C:\opencv-build\bin\libopencv_videoio411.dll
 
 # The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked deprecated (the exact warnings

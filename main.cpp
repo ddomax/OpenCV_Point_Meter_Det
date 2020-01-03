@@ -15,9 +15,7 @@ int main(int argc, char** argv)
     captureTimer.start(25); // Interval 0 means to refresh as fast as possible
 #else
     while(1){
-        processer.process();
-        if(waitKey(1)==27)
-            return 0;//ESC for quit
+        if(processer.process()<0) return 0;
     }
 #endif
     return a.exec();

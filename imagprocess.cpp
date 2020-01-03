@@ -3,7 +3,7 @@
 ImagProcess::ImagProcess(QObject *parent) : QObject(parent)
 {
     cap = VideoCapture(CV_CAP_DSHOW);
-    cap.open(2);
+    cap.open(0);
     //检查摄像头是否成功打开
     if (!cap.isOpened())
     {
@@ -13,8 +13,8 @@ ImagProcess::ImagProcess(QObject *parent) : QObject(parent)
 //    qDebug() << cap.get(CV_CAP_PROP_FOURCC);
 //    qDebug() << cap.set(CV_CAP_PROP_FOURCC,CV_FOURCC('Y', 'U', 'Y', '2'));
 //    qDebug() << cap.get(CV_CAP_PROP_FOURCC);
-    qDebug() << cap.set(CV_CAP_PROP_FRAME_WIDTH, 10000); //1024*3
-    qDebug() << cap.set(CV_CAP_PROP_FRAME_HEIGHT, 10000); //768*3
+    qDebug() << cap.set(CV_CAP_PROP_FRAME_WIDTH, 10000); //a valid resolution set will change the format to YUY2
+    qDebug() << cap.set(CV_CAP_PROP_FRAME_HEIGHT, 10000); //an invalid resolution set will use the MJPG foramt
     qDebug() << cap.set(CV_CAP_PROP_EXPOSURE, -2);//曝光
 //    qDebug() << cap.set(CV_CAP_PROP_AUTO_EXPOSURE,0.25);
     qDebug() << cap.get(CV_CAP_PROP_EXPOSURE);
@@ -47,6 +47,8 @@ ImagProcess::ImagProcess(QObject *parent) : QObject(parent)
 //    }
 //    grabMode = cap.get(CV_CAP_PROP_MODE);
 //    qDebug() << grabMode;
+    for(int i=0;i<42;i++)
+        qDebug() << cap.get(i); //Show available properties
     time.start();
 }
 
@@ -71,18 +73,58 @@ int ImagProcess::process()
 
     // CannyDetect
     Mat canny_img;
-    Canny(gray_img, canny_img, 20, 50, 3); //23,55 ,3
+    Canny(gray_img, canny_img, 12, 25, 3); //23,55 ,3
     imshow("Canny Output Main",canny_img);
 
 //    qDebug() << QString("CannyRunTime:%1ms").arg(time.elapsed()-tempTime);
 #endif
 
     // Show and save the dstImage
+    imshow("Canny Output Main",canny_img);
     imshow("Raw Image", src_img);
-    if((char)waitKey(1)=='c')
-    {
+
+    // Key Switch
+    switch ((char)waitKey(1)) {
+    case 'c':
         imwrite("cap.png",src_img);
         qDebug() << QString("Image saved!");
+        break;
+    case 'a':
+        qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)+1);
+        qDebug() << QString("CurrentExposeVal:%1").arg(cap.get(cv::CAP_PROP_EXPOSURE));
+        break;
+    case 's':
+        qDebug() << cap.set(cv::CAP_PROP_EXPOSURE, cap.get(cv::CAP_PROP_EXPOSURE)-1);
+        qDebug() << QString("CurrentExposeVal:%1").arg(cap.get(cv::CAP_PROP_EXPOSURE));
+        break;
+    case 'w':
+        qDebug() << cap.set(cv::CAP_PROP_IRIS, cap.get(cv::CAP_PROP_IRIS)+2000);
+        qDebug() << QString("CurrentIRIS:%1").arg(cap.get(cv::CAP_PROP_IRIS));
+        break;
+    case 'x':
+        qDebug() << cap.set(cv::CAP_PROP_IRIS, cap.get(cv::CAP_PROP_IRIS)-2000);
+        qDebug() << QString("CurrentIRIS:%1").arg(cap.get(cv::CAP_PROP_IRIS));
+        break;
+    case 'r':
+        qDebug() << cap.set(cv::CAP_PROP_IRIS, cap.get(cv::CAP_PROP_IRIS)+10000);
+        qDebug() << QString("CurrentIRIS:%1").arg(cap.get(cv::CAP_PROP_IRIS));
+        break;
+    case 'v':
+        qDebug() << cap.set(cv::CAP_PROP_IRIS, cap.get(cv::CAP_PROP_IRIS)-10000);
+        qDebug() << QString("CurrentIRIS:%1").arg(cap.get(cv::CAP_PROP_IRIS));
+        break;
+    case 'q':
+        qDebug() << cap.set(cv::CAP_PROP_GAIN, cap.get(cv::CAP_PROP_GAIN)+3);
+        qDebug() << QString("CurrentGain:%1").arg(cap.get(cv::CAP_PROP_GAIN));
+        break;
+    case 'z':
+        qDebug() << cap.set(cv::CAP_PROP_GAIN, cap.get(cv::CAP_PROP_GAIN)-3);
+        qDebug() << QString("CurrentGain:%1").arg(cap.get(cv::CAP_PROP_GAIN));
+        break;
+    case 27:
+        return -1;
+    default:
+        break;
     }
 
 //    qDebug() << QString("TotalRunTime:%1ms").arg(time.elapsed()-frameStartTime);
